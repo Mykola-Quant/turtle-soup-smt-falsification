@@ -97,3 +97,5 @@ This is the final chapter of a longer falsification arc — earlier rounds teste
 ---
 
 *Methodology over outcome. The value here is a process that a real trading edge is supposed to survive — and this one didn't.*
+
+*Author: Mykola · [github.com/Mykola-Quant](https://github.com/Mykola-Quant) · Built with Python on a MacBook Air.*
