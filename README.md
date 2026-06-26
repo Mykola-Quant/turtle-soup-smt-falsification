@@ -1,104 +1,99 @@
-# Retail Crypto Alpha: A Negative-Results Study
+# Turtle Soup + SMT: A Pre-Registered Falsification
 
-**A systematic test of whether retail-accessible microstructure signals can beat costs on liquid
-crypto — and an honest account of what does and does not survive.**
+**Does a cross-asset SMT divergence filter add real edge to a CRT / Turtle-Soup liquidity-sweep strategy?**
+Four pre-registered tests across FX, metals, and crypto. Short answer: **no surviving edge.**
 
-This repository contains the full research pipeline behind the study: live data collectors, a
-tick-data ingestion layer, a reusable backtesting framework, and a suite of risk-management tools.
-Every hypothesis was pre-specified, tested out-of-sample, charged realistic transaction costs, and
-checked for multiple testing. The headline result is a clean negative — and a clear answer about
-where achievable value actually lies.
-
-📄 **Full write-up:** [`research_report.md`](research_report.md) · [`research_report.pdf`](research_report.pdf)
+> **Part of a larger falsification arc.** The crypto-microstructure half of this work — order flow, liquidations + OI, CVD divergence, funding, FVG, calendar effects across BTC/ETH/SOL/gold/oil — lives in [retail-crypto-alpha](https://github.com/Mykola-Quant/retail-crypto-alpha). Same discipline: default = no edge, costs charged, out-of-sample confirmation required.
 
 ---
 
-## TL;DR — what the data said
+## TL;DR
 
-- Tested **more than a dozen configurations** across order flow, liquidations + open interest,
-  OHLCV patterns, spot–perpetual CVD divergence, funding-rate mean reversion, opening-range gaps,
-  intraday momentum, and calendar effects — on **five assets** (BTC, ETH, SOL, gold, oil).
-- After a realistic **~0.13% round-trip cost** and multiple-testing controls, **no signal produced
-  a tradeable edge** at intraday-to-daily horizons. At short horizons the predictable move is
-  roughly an order of magnitude smaller than the cost of capturing it.
-- The single apparent exceptions were small-sample artifacts. One worked example: a day-of-week
-  effect that looked strong on 16 samples across three assets at once — and **vanished completely**
-  when the sample was extended (76 samples, all t-tests insignificant).
-- **Risk overlays do not create alpha but reshape it:** on Bitcoin, volatility targeting + a trend
-  filter cut the worst drawdown from **≈ −83% to ≈ −29%** at roughly unchanged risk-adjusted return.
-  Gold was the calmest asset of the set.
+A popular discretionary playbook — a higher-timeframe **CRT** range, a **Turtle Soup** sweep of a key level, and a **SMT divergence** against a correlated instrument as confirmation, traded inside session killzones — was made fully mechanical and tested honestly. The question was narrow on purpose: *does the SMT filter add expectancy, or just shrink the sample?*
 
-## Methodology
+| # | Test | Data | Full-sample p | Out-of-sample verdict |
+|---|------|------|:---:|---|
+| 1 | XAU/XAG (gold vs silver) | 2020–2024 | 0.46 | ❌ no effect |
+| 2 | XAU vs DXY-proxy | 2025 | 0.013 | ❌ H1 fails (p=0.20) |
+| 3 | XAU vs synthetic DXY | 2025 | 0.025 | ❌ H1 fails (p=0.13) |
+| 4 | BTC vs SOL (crypto) | 2025–2026 | 0.78 | ❌ no effect |
 
-The backtesting framework is built on one rule: a backtest must be allowed to return "no edge."
+Every test fails. The baseline Turtle-Soup pattern is net-negative after costs everywhere. Where the SMT filter *did* test significant (gold vs the dollar), the effect was **concentrated entirely in the second half of 2025** and did not replicate on five untouched prior years (p=0.46) or on a different asset class (p=0.78). The apparent signal is a **regime fingerprint, not a stable edge**.
 
-- **Default = no edge.** The burden of proof is on the signal.
-- **Train/test split**, with thresholds and parameters fit on the training set only.
-- **Realistic cost model** (~0.13% round-trip) applied to every position change.
-- **Minimum-sample gate** (n ≥ 30); bootstrap confidence intervals; permutation and drift-aware
-  significance tests.
-- **No look-ahead:** causal features, shifted signals, excess returns measured against baseline
-  drift.
-- **Multiple-testing discipline:** a single significant cell among many is treated as noise unless
-  pre-specified and confirmed out-of-sample.
+## Why this is worth publishing
 
-## Repository structure
+This isn't a "+200% backtest." It's the opposite, and that's the point. The repo demonstrates a disciplined falsification workflow that most retail strategy testing skips:
 
-**Data infrastructure**
-- `main.py` — live collector / bot engine: self-healing WebSocket streams (trades, liquidations,
-  open interest / funding) with exponential-backoff reconnect and client recreation.
-- `database.py` — asynchronous SQLite storage layer.
-- `convert_spot.py`, `convert_perp.py`, `convert_csv_to_parquet.py`, `merge_spot.py`,
-  `merge_perp.py` — aggregated-trade ingestion: timestamp-unit auto-detection, deduplication, and
-  memory-light bar aggregation (handles 180M+ rows on a laptop).
-- `fetch_daily.py`, `fetch_funding.py` — daily-bar and funding-history fetchers.
+- **Pre-registration.** Every threshold (sweep buffer, costs, the OOS pass criterion) was fixed *before* results were seen. No tuning against the test set.
+- **Costs taken seriously.** 0.5 pip RT on FX, broker-style on metals, a conservative **0.13% RT on crypto**. Costs, not signal absence, do most of the killing.
+- **Distribution-free significance.** A 10,000-shuffle permutation test for the SMT effect, plus a bootstrap 95% CI on net expectancy.
+- **A decisive out-of-sample test, specified in advance.** Split the ledger at the calendar midpoint; the effect survives *only* if both halves show positive delta and p < 0.10. This single rule killed three "significant" full-sample results.
 
-**Backtesting harnesses**
-- `honest_backtest.py` — order-flow momentum and absorption.
-- `cascade_study.py` — liquidation cascades conditioned on open interest.
-- `cvd_divergence_v2.py` — spot–perpetual CVD divergence.
-- `funding_zscore_backtest.py` — funding-rate z-score mean reversion.
-- `absorption_backtest.py` — absorption context filter with a drift-aware permutation test.
-- `opening_fvg_backtest.py`, `multi_fvg_backtest.py` — opening-range FVG and calendar effects,
-  cross-asset (BTC, ETH, SOL, gold, oil).
-- `strategy_suite_backtest.py`, `weekday_effect_analysis.py`, `monday_range_sweep_backtest.py` —
-  intraday-momentum, calendar, and Monday-range tests (the small-sample / out-of-sample discipline
-  in action).
-- `cme_gaps.py`, `session_bias_tester.py`, `hypothesis_tester.py` — additional OHLCV-pattern tests.
-- `regime_overlay_v2.py` — volatility targeting and trend filters with parameter-plateau checks.
+## The strategy, made mechanical
 
-**Risk-management utilities**
-- `daily_risk_signal.py` — daily target-position generator (volatility targeting + trend filter),
-  with history export and charting.
-- `risk_bot.py` — Telegram bot exposing the daily signal and the price/position chart on demand.
+- **CRT range** — the prior completed 4 h candle defines CRT high / CRT low (the key liquidity levels).
+- **Turtle Soup** — price pokes beyond a key level by a fixed buffer, then closes back inside within the same bar → sweep.
+- **SMT divergence** — a correlated instrument fails to confirm the sweep (e.g. gold makes a new high while the dollar fails to make a new low).
+- **Time** — London + NY-AM killzones on FX/metals; 24/7 on crypto.
+- **Model #1** — entry on the reclaim close, stop beyond the sweep extreme, fixed 2R target.
 
-**Earlier exploratory components**
-- `strategy.py`, `position_manager.py`, `liquidity_levels.py`, `daily_report.py` — parts of an
-  earlier discretionary/SMC trading bot, retained for context on how the research began.
+## Key figures
 
-## Getting started
+| | |
+|---|---|
+| ![Full-sample effect](figures/fig1_full_effect.png) | ![OOS split-half](figures/fig2_oos.png) |
+| **Fig 1** — full-sample SMT effect; only gold-vs-dollar is significant | **Fig 2** — the signal lives only in H2-2025 |
+| ![Net expectancy](figures/fig3_net.png) | ![Cost erosion](figures/fig4_costs.png) |
+| **Fig 3** — every cell net-negative after costs | **Fig 4** — costs subtract ~0.57R/trade on crypto |
+
+## Reproduce it
 
 ```bash
-python -m venv venv && source venv/bin/activate
-pip install pandas numpy ccxt pyarrow matplotlib scipy
+python -m venv .venv && source .venv/bin/activate
+pip install pandas numpy pyarrow matplotlib
 
-# Example: today's risk-managed target position for BTC
-python daily_risk_signal.py --file btc_daily.csv
+# 1. Convert HistData 1-min ASCII -> clean UTC parquet (year-filterable)
+python convert_histdata.py XAUUSD xauusd_2020_2024.parquet 2020 2024
+python convert_histdata.py XAGUSD xagusd_2020_2024.parquet 2020 2024
 
-# Example: reproduce the order-flow result
-python honest_backtest.py
+# 2. (optional) build the dollar partner for the SMT test
+python build_dxy_proxy.py eurusd_1m.parquet dxy_proxy_1m.parquet
+python build_synthetic_dxy.py --out dxy_synth_1m.parquet   # full 6-pair ICE index
+
+# 3. Run a pre-registered test (prints baseline, SMT, permutation, bootstrap, OOS)
+python crt_turtlesoup_smt_backtest.py \
+    --primary xauusd_2020_2024.parquet --secondary xagusd_2020_2024.parquet \
+    --asset xauusd --smt-mode positive
 ```
 
-Each script is independently runnable and prints its own train/test results with costs and
-significance tests.
+Each run prints the full result block including the pre-registered out-of-sample verdict.
 
-## Why a negative result
+## Repo structure
 
-Anyone can show a profitable backtest. Demonstrating the discipline to disprove one's own ideas —
-repeatedly, across assets, with the statistics to back it — is the rarer and more useful signal,
-and it is what this project is really about: rigorous methodology, reliable data infrastructure, and
-honest interpretation.
+```
+crt_turtlesoup_smt_backtest.py   # engine: CRT, Turtle Soup, SMT, fixed-R sim,
+                                 #   permutation + bootstrap + split-half OOS
+convert_histdata.py              # HistData M1 ASCII -> UTC parquet, year filter
+build_dxy_proxy.py               # quick dollar proxy = 1/EURUSD (correct OHLC swap)
+build_synthetic_dxy.py          # full ICE DXY from 6 pairs
+make_charts.py                   # regenerate the figures
+report/                          # PDF research report
+figures/                         # PNG charts
+```
+
+## Data sources
+
+- **FX & metals:** free 1-minute bars from [HistData.com](https://www.histdata.com) (ASCII M1).
+- **Crypto:** Binance 5-minute OHLC.
+
+## Honest limitations
+
+Costs are modelled, not broker-exact (metals are conservative placeholders). Killzone hours are not yet DST-adjusted — though no session showed positive net expectancy regardless. Exits use a fixed 2R bracket; a CRT-liquidity target could reshape the distribution but not the central finding that the SMT *filter* adds no stable edge.
+
+## Context
+
+This is the final chapter of a longer falsification arc — earlier rounds tested SMC sweep patterns, opening-FVG directional theses, and 1-minute order-flow signals (momentum / absorption / liquidation cascades) on crypto, all of which were falsified after costs. Same methodology throughout: pre-register, separate descriptive from tradable, apply real costs, reject what fails an honest test.
 
 ---
 
-*Author: Mykola · github.com/Mykola-Quant · Built with Python on commodity hardware.*
+*Methodology over outcome. The value here is a process that a real trading edge is supposed to survive — and this one didn't.*
