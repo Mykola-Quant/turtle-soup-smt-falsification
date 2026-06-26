@@ -1,0 +1,11 @@
+*.parquet
+DAT_ASCII_*.csv
+*_trades.parquet
+*_1m.csv
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+.idea/
+.vscode/
